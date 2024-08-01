@@ -1,7 +1,8 @@
+import 'langium-tools/base';
+import { GeneratorOutput } from 'langium-tools/generator';
 import type { Model } from '../language/generated/ast.js';
 import { expandToNode, joinToNode, toString } from 'langium/generate';
 import * as path from 'node:path';
-import { GeneratorOutput } from 'langium-tools';
 
 // import { extractDestinationAndName } from './cli-util.js';
 // export function generateJavaScript(model: Model, output: GeneratorOutput): string {

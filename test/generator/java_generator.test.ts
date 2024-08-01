@@ -1,14 +1,13 @@
-import { beforeAll, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import * as fs from 'node:fs';
 
-import { EmptyFileSystem, URI, WorkspaceFolder, type LangiumDocument } from "langium";
-import { parseHelper } from "langium/test";
+import { URI, WorkspaceFolder } from "langium";
 import { createStateMachineServices } from "../../src/language/state-machine-module.js";
 import { Model } from "../../src/language/generated/ast.js";
 import { generate } from "../../src/cli/generator.js";
 import { NodeFileSystem } from "langium/node";
 import path from "node:path";
-import { GeneratedContent, GeneratorOutputCollector } from "langium-tools";
+import { GeneratedContent, GeneratorOutputCollector } from "langium-tools/generator";
 
 
 
@@ -24,7 +23,6 @@ import { GeneratedContent, GeneratorOutputCollector } from "langium-tools";
 // });
 
 describe("Langium code generator tests", () => {
-  const services = createStateMachineServices(NodeFileSystem)
 
   // Iterate over all DSL files in dsls/ directory
   fs.readdirSync(__dirname, { withFileTypes: true })
@@ -32,7 +30,8 @@ describe("Langium code generator tests", () => {
     .forEach((dirent) => {
       const testDirName = dirent.name;
 
-      test("generate for " + testDirName, async () => {
+      test(`DSL-Workspace "${testDirName}"`, async () => {
+        const services = createStateMachineServices(NodeFileSystem)
         const workspaceManager = services.shared.workspace.WorkspaceManager;
         const LangiumDocuments = services.shared.workspace.LangiumDocuments;
         const DocumentBuilder = services.shared.workspace.DocumentBuilder;

@@ -9,7 +9,7 @@ import * as url from 'node:url';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { URI, WorkspaceFolder } from 'langium';
-import { GeneratorOutputCollector } from 'langium-tools';
+import { GeneratorOutputCollector } from 'langium-tools/generator';
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 const packagePath = path.resolve(__dirname, '..', '..', 'package.json');
@@ -63,8 +63,8 @@ export const generateWorkspaceAction = async (workspaceDir: string, opts: Genera
     const collector = new GeneratorOutputCollector();
     documents.forEach(doc => {
         const model = doc.parseResult.value as Model;
-        const dslWorkspacePath = path.relative(workspaceFolder.uri, doc.uri.path);
-        console.log("Generate for ", dslWorkspacePath);
+        const dslWorkspacePath = path.relative(workspaceFolder.uri, doc.uri.toString());
+        console.log(`Generate for ${dslWorkspacePath}`);
         generate(model, collector.generatorOutputFor(dslWorkspacePath));
     });
 
