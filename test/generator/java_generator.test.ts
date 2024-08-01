@@ -1,127 +1,97 @@
-import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
-import { generateAction } from "../../src/cli/main.js";
+import { beforeAll, describe, expect, test } from "vitest";
 import * as fs from 'node:fs';
 
 import { EmptyFileSystem, URI, WorkspaceFolder, type LangiumDocument } from "langium";
-import { expandToString as s } from "langium/generate";
 import { parseHelper } from "langium/test";
 import { createStateMachineServices } from "../../src/language/state-machine-module.js";
-import { Model, isModel } from "../../src/language/generated/ast.js";
+import { Model } from "../../src/language/generated/ast.js";
 import { generate } from "../../src/cli/generator.js";
-import { createLangiumGrammarServices } from "langium/grammar";
 import { NodeFileSystem } from "langium/node";
 import path from "node:path";
+import { GeneratedContent, GeneratorOutputCollector } from "langium-tools";
 
 
 
-let services: ReturnType<typeof createStateMachineServices>;
-let parse: ReturnType<typeof parseHelper<Model>>;
-let document: LangiumDocument<Model> | undefined;
+// let services: ReturnType<typeof createStateMachineServices>;
+// let parse: ReturnType<typeof parseHelper<Model>>;
 
-beforeAll(async () => {
-  services = createStateMachineServices(EmptyFileSystem);
-  parse = parseHelper<Model>(services.StateMachine);
+// beforeAll(async () => {
+//   services = createStateMachineServices(EmptyFileSystem);
+//   parse = parseHelper<Model>(services.StateMachine);
+//
+//   // activate the following if your linking test requires elements from a built-in library, for example
+//   // await services.shared.workspace.WorkspaceManager.initializeWorkspace([]);
+// });
 
-  // activate the following if your linking test requires elements from a built-in library, for example
-  // await services.shared.workspace.WorkspaceManager.initializeWorkspace([]);
-});
-
-describe("java_generator", () => {
-
-  // beforeAll(() => {
-  //   vi.spyOn(fs, "writeFileSync").mockImplementation((file, data, options) => {
-  //     console.log("Mocked writeFileSync:", file, data);
-  //   });
-  // });
-
-  // // Restore mocks after each test
-  // afterEach(() => {
-  //   vi.restoreAllMocks();
-  // });
-
+describe("Langium code generator tests", () => {
+  const services = createStateMachineServices(NodeFileSystem)
 
   // Iterate over all DSL files in dsls/ directory
-  const dirOfThisTestFile = __dirname;
-  fs.readdirSync(dirOfThisTestFile, { withFileTypes: true })
+  fs.readdirSync(__dirname, { withFileTypes: true })
     .filter((dirent) => dirent.isDirectory())
     .forEach((dirent) => {
-      const name = dirent.name;
+      const testDirName = dirent.name;
 
-      // const dslsDir = dirOfThisTestFile + "/dsls";
-      // const outputDir = dirOfThisTestFile + "/out";
-      // const dslFiles = fs.readdirSync(dslsDir);
-      // const dslFilesWithExtState = dslFiles.filter((file) => file.endsWith(".state"));
-      // dslFilesWithExtState.forEach((dslFile) => {
-      test("generateJava for " + name, async () => {
-        const services = createStateMachineServices(NodeFileSystem)
-        // console.log("Services: ", services);
-
+      test("generate for " + testDirName, async () => {
         const workspaceManager = services.shared.workspace.WorkspaceManager;
-        // const documentFactory = services.shared.workspace.LangiumDocumentFactory;
-        // const documentBuilder = services.shared.workspace.DocumentBuilder;
         const LangiumDocuments = services.shared.workspace.LangiumDocuments;
         const DocumentBuilder = services.shared.workspace.DocumentBuilder;
 
-        // Define the workspace folder
         const workspaceFolder: WorkspaceFolder = {
           name: 'MyDSL Workspace',
-          uri: URI.file(dirOfThisTestFile + "/" + name + '/dsls').toString()
+          uri: URI.file(__dirname + "/" + testDirName + '/dsls').toString()
         };
 
-        const outputDir = dirOfThisTestFile + "/" + name + '/generated';
+        const outputDir = path.join(__dirname, testDirName, 'generated');
 
-        // Initialize the workspace with the folder
-        console.log("Init dir ", workspaceFolder)
         await workspaceManager.initializeWorkspace([workspaceFolder]);
 
         // Access documents from LangiumDocuments
         const documents = LangiumDocuments.all.toArray();
-        console.log("Documents found: ", documents.length);
+        console.log(`Building workspace ${workspaceFolder.uri} with ${documents.length} DSLs`);
         await DocumentBuilder.build(documents);
 
         // Ensure there are no parser errors
         documents.forEach(doc => {
-          expect(doc.parseResult.parserErrors, `DSL file ${doc.uri} has errors`).toHaveLength(0);
+          expect(doc.parseResult.lexerErrors, `DSL file ${doc.uri} has lexer errors`).toHaveLength(0);
+          expect(doc.parseResult.parserErrors, `DSL file ${doc.uri} has parser errors`).toHaveLength(0);
         });
 
-        // Call generator for all documents
-        const fileContentMapList = documents.map(doc => {
+        const outputCollecor = new GeneratorOutputCollector();
+        documents.forEach(doc => {
           const model = doc.parseResult.value as Model;
-          const relativeFileName = path.relative(workspaceFolder.uri, doc.uri.path);
-          const fileContentMap = generate(model, relativeFileName);
-          console.log("Generated files: ", fileContentMap.keys());
-          return fileContentMap;
+          const relativeFileName = path.relative(workspaceFolder.uri, doc.uri.toString());
+          generate(model, outputCollecor.generatorOutputFor(relativeFileName));
         });
-        // console.log(fileContentMapList)
 
-        // Check, that files doesn't get overwritten.  Add to the err msg both DSLs that are involved into the clash.
-        const fileMap = fileContentMapList.reduce<Map<string, number[]>>((acc, item, index) => {
-          Array.from(item.keys()).reduce<Map<string, number[]>>((innerAcc, filename) => {
-            if (!innerAcc.has(filename)) {
-              innerAcc.set(filename, []);
-            }
-            innerAcc.get(filename)!.push(index);
-            return innerAcc;
-          }, acc);
-
-          return acc;
-        }, new Map<string, number[]>());
-
-        const clashFiles = Array.from(fileMap.entries())
-          .filter(([filename, indices]) => indices.length > 1)
-          .map(([filename, indices]) => {
-            return `${filename} is generated by DSLs: ${indices.map(index => documents[index].uri)}`;
-          });
-
-        expect(clashFiles, `Clash in generated files: ${clashFiles}`).toHaveLength(0);
+        // // Check, that files doesn't get overwritten.  Add to the err msg both DSLs that are involved into the clash.
+        // const fileMap = fileContentMapList.reduce<Map<string, number[]>>((acc, item, index) => {
+        //   Array.from(item.keys()).reduce<Map<string, number[]>>((innerAcc, filename) => {
+        //     if (!innerAcc.has(filename)) {
+        //       innerAcc.set(filename, []);
+        //     }
+        //     innerAcc.get(filename)!.push(index);
+        //     return innerAcc;
+        //   }, acc);
+        //
+        //   return acc;
+        // }, new Map<string, number[]>());
+        //
+        // const clashFiles = Array.from(fileMap.entries())
+        //   .filter(([filename, indices]) => indices.length > 1)
+        //   .map(([filename, indices]) => {
+        //     return `${filename} is generated by DSLs: ${indices.map(index => documents[index].uri)}`;
+        //   });
+        //
+        // expect(clashFiles, `Clash in generated files: ${clashFiles}`).toHaveLength(0);
 
         // Combine all file content maps into one
-        const fileContentMap = fileContentMapList.reduce((acc, item) => {
-          item.forEach((content, filename) => {
-            acc.set(filename, content);
-          });
-          return acc;
-        }, new Map<string, string>());
+        // const fileContentMap = fileContentMapList.reduce((acc, item) => {
+        //   item.forEach((content, filename) => {
+        //     acc.set(filename, content);
+        //   });
+        //   return acc;
+        // }, new Map<string, string>());
 
 
 
@@ -151,9 +121,9 @@ describe("java_generator", () => {
 
         if (generateMode) {
           cleanDir(outputDir);
-          createFiles(fileContentMap, outputDir);
+          outputCollecor.writeToDisk(outputDir);
         } else {
-          verifyFiles(fileContentMap, outputDir);
+          verifyFiles(outputCollecor.getGeneratedContent(), outputDir);
         }
         //
         // expect(true).toBe(true);
@@ -195,17 +165,17 @@ function cleanDir(outputDir: string) {
 }
 
 
-function createFiles(fileContentMap: Map<string, string>, baseDir: string) {
-  fileContentMap.forEach((content, fileName) => {
-    const filePath = baseDir + "/" + fileName;
-    // create dir if does not exists
-    const dir = filePath.substring(0, filePath.lastIndexOf("/"));
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(filePath, content);
-  })
-}
+// function createFiles(fileContentMap: Map<string, string>, baseDir: string) {
+//   fileContentMap.forEach((content, fileName) => {
+//     const filePath = baseDir + "/" + fileName;
+//     // create dir if does not exists
+//     const dir = filePath.substring(0, filePath.lastIndexOf("/"));
+//     if (!fs.existsSync(dir)) {
+//       fs.mkdirSync(dir, { recursive: true });
+//     }
+//     fs.writeFileSync(filePath, content);
+//   })
+// }
 
 /**
  * Verify, that generated file structure matches exacly
@@ -214,21 +184,17 @@ function createFiles(fileContentMap: Map<string, string>, baseDir: string) {
  * @param fileContentMap
  * @param outputDir
  */
-function verifyFiles(fileContentMap: Map<string, string>, outputDir: string) {
-  // const expectedFiles = new Set(fileContentMap.keys());
-
-  const files = fs.readdirSync(outputDir, { recursive: true })
-    .filter((file: string) => fs.statSync(outputDir + "/" + file).isFile());
-  console.log("Files in outputDir: ", files);
-
-  fileContentMap.forEach((content, fileName) => {
+function verifyFiles(content: GeneratedContent, outputDir: string) {
+  const files = (fs.readdirSync(outputDir, { recursive: true }) as string[])
+    .filter(file => fs.statSync(path.join(outputDir, file)).isFile());
+  content.forEach((content, fileName) => {
     expect(files, "Unexpected generated file").toContain(fileName);
     const filePath = outputDir + "/" + fileName;
     const fileContent = fs.readFileSync(filePath, "utf-8");
-    expect(fileContent, "File: " + fileName).toBe(content);
+    expect(fileContent, "File: " + fileName).toBe(content.content);
   });
-  if (files.length !== fileContentMap.size) {
-    const missingFiles = Array.from(fileContentMap.keys()).filter((file) => !files.includes(file));
+  if (files.length !== content.size) {
+    const missingFiles = Array.from(content.keys()).filter((file) => !files.includes(file));
     throw new Error("Missing files: " + missingFiles);
   }
 

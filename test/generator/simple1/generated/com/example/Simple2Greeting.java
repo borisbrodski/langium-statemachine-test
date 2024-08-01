@@ -1,6 +1,6 @@
 package com.example;
 
-public enum simple2Greeting {
+public enum Simple2Greeting {
     Aaa,
     Bbb,
 }

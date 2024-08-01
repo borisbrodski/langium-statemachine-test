@@ -1,5 +1,5 @@
 package com.example;
 
-public enum simple1Greeting {
+public enum Simple1Greeting {
     World,
 }
