@@ -11,7 +11,8 @@
     "scripts": {
         "build": "tsc -b tsconfig.src.json",
         "watch": "tsc -b tsconfig.src.json --watch",
-        "lint": "eslint src --ext ts",
+        "lint": "eslint 'src/**/*.{ts,tsx}'",
+        "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
         "langium:generate": "langium generate",
         "langium:watch": "langium generate --watch",
         "test": "GENERATOR_TEST=verify vitest run",
@@ -24,6 +25,7 @@
     },
     "devDependencies": {
         "@types/node": "^18.0.0",
+        "typescript-eslint": "^7.18.0",
         "@typescript-eslint/parser": "~7.3.1",
         "@typescript-eslint/eslint-plugin": "~7.3.1",
         "eslint": "~8.57.0",
