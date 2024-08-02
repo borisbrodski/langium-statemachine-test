@@ -61,12 +61,14 @@ export const generateWorkspaceAction = async (workspaceDir: string, opts: Genera
         }
     });
     const collector = new GeneratorOutputCollector();
-    documents.forEach(doc => {
+
+    // Generate parallel for all DSL files
+    await Promise.all(documents.map(async doc => {
         const model = doc.parseResult.value as Model;
         const dslWorkspacePath = path.relative(workspaceFolder.uri, doc.uri.toString());
         console.log(`Generate for ${dslWorkspacePath}`);
-        generate(model, collector.generatorOutputFor(dslWorkspacePath));
-    });
+        await generate(model, collector.generatorOutputFor(dslWorkspacePath));
+    }));
 
     collector.writeToDisk(outputDir);
     console.log(chalk.green(`${collector.getGeneratedContent().size} files generated successfully info ${outputDir}`));

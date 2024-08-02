@@ -15,7 +15,7 @@
         "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
         "langium:generate": "langium generate",
         "langium:watch": "langium generate --watch",
-        "test": "GENERATOR_TEST=verify vitest run",
+        "test": "GENERATOR_TEST=verify vitest",
         "test:generate": "GENERATOR_TEST=generate vitest run"
     },
     "dependencies": {

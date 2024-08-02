@@ -31,7 +31,7 @@ import * as path from 'node:path';
  * @returns
  *   Map<string, string> - filename to content
  */
-export function generate(model: Model, output: GeneratorOutput): void {
+export async function generate(model: Model, output: GeneratorOutput): Promise<void> {
     const modelFileName = path.basename(output.getDslWorkspacePath(), '.state').toFirstUpper();
 
     generateEnum(model, output, modelFileName);

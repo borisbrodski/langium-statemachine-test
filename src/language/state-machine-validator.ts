@@ -25,6 +25,9 @@ export class StateMachineValidator {
             if (firstChar.toUpperCase() !== firstChar) {
                 accept('warning', 'Person name should start with a capital.', { node: person, property: 'name' });
             }
+            if (person.name === 'name') {
+                accept('error', 'Person name can\'t be "name".', { node: person, property: 'name' });
+            }
         }
     }
 
